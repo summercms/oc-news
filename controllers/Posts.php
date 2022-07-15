@@ -9,7 +9,6 @@ use Mail;
 use Request;
 use Indikator\News\Models\Posts as Item;
 use Indikator\News\Classes\NewsSender;
-use Jenssegers\Date\Date;
 use Carbon\Carbon;
 use Flash;
 use Lang;
@@ -20,12 +19,14 @@ class Posts extends Controller
     public $implement = [
         \Backend\Behaviors\FormController::class,
         \Backend\Behaviors\ListController::class,
-        \Backend\Behaviors\ImportExportController::class
+        \Backend\Behaviors\ImportExportController::class,
+        \Backend\Behaviors\RelationController::class
     ];
 
     public $formConfig = 'config_form.yaml';
     public $listConfig = 'config_list.yaml';
     public $importExportConfig = 'config_import_export.yaml';
+    public $relationConfig = 'config_relation.yaml';
 
     public $requiredPermissions = ['indikator.news.posts'];
 
@@ -100,7 +101,7 @@ class Posts extends Controller
         $sender = new NewsSender($news);
 
         if ($sender->resendNewsletter()) {
-            Item::where('id', $news->id)->update(['last_send_at' => Date::now()]);
+            Item::where('id', $news->id)->update(['last_send_at' => now()]);
 
             Flash::success(trans('indikator.news::lang.flash.newsletter_resend_success'));
         }

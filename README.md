@@ -24,7 +24,7 @@ Plugin is same like put together a blog and a newsletter plugin. The main differ
 <a name="main_features"></a>
 ## Main features
 * Managing posts
-* Managing categories
+* Managing nested categories
 * Managing subscribers
 * Support the SEO
 * Support the GDPR
@@ -36,7 +36,6 @@ Plugin is same like put together a blog and a newsletter plugin. The main differ
 * Back-end widgets
 * Available extensions
 * Innovative solutions
-* Regular updates
 
 <a name="statistics"></a>
 ## Statistics and graphs
@@ -114,7 +113,7 @@ __For post__
 * {{ post.introductory|raw }} - Summary of post
 * {{ post.content|raw }} - Content of post
 * {{ post.published_at }} - Published date of post
-* {{ post.category }} - ID of category (0: no category selected)
+* {{ post.categories }} - Categories of post
 * {{ post.tags }} - List of tags in array
 * {{ post.seo_title }} - SEO title
 * {{ post.seo_keywords }} - SEO keywords
@@ -179,10 +178,11 @@ You can customize the layout of emails in the __Settings > Mail > Mail templates
 * hu - Magyar
 * pl - Polski
 * pt - Português
+* zh-TW - Taiwanese, Traditional Chinese
 
 <a name="requirements"></a>
 ## Requirements
-* OctoberCMS build 420 or newer version.
+* October CMS v1.0.420 or newer version.
 * [AJAX Framework](https://octobercms.com/docs/ajax) is needed for the subscription form to work.
 
 <a name="installation"></a>

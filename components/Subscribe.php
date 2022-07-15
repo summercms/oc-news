@@ -22,11 +22,36 @@ class Subscribe extends ComponentBase
         ];
     }
 
+
+    public function defineProperties()
+    {
+        return [
+            'categoryFilter' => [
+                'title'       => 'indikator.news::lang.settings.category_filter_title',
+                'description' => 'indikator.news::lang.settings.category_filter_description',
+                'type'        => 'dropdown',
+                'default'     => ''
+            ],
+        ];
+    }
+
+    public function getCategoryFilterOptions()
+    {
+        return Categories::listsNested('name', 'id');
+    }
+
     public function onRun()
     {
-        $category = Categories::where(['status' => 1, 'hidden' => 2]);
-        $this->page['category_list']  = $category->get()->all();
-        $this->page['category_count'] = $category->count();
+        $categoryFilter = $this->property('categoryFilter');
+        if ($categoryFilter) {
+            $categories =  Categories::find($categoryFilter)->allChildren(false)->isActive()->get();
+            $this->page['category_list']  = $categories;
+            $this->page['category_count'] = $categories->count();
+        } else {
+            $category = Categories::isActive();
+            $this->page['category_list']  = $category->get();
+            $this->page['category_count'] = $category->count();
+        }
 
         $this->page['text_messages'] = Lang::get('indikator.news::lang.messages.subscribed');
         $this->page['text_name']     = Lang::get('indikator.news::lang.form.name');
@@ -42,9 +67,8 @@ class Subscribe extends ComponentBase
 
         // Validate input data
         $rules = [
-            'name'     => 'required|between:2,64',
-            'email'    => 'required|email|between:8,64',
-            'category' => 'array'
+            'name'  => 'required|between:2,64',
+            'email' => 'required|email|between:8,64'
         ];
 
         $validation = Validator::make($data, $rules);
@@ -52,11 +76,12 @@ class Subscribe extends ComponentBase
             throw new ValidationException($validation);
         }
 
-        $email = post('email');
+        // Get input data
         $name  = post('name');
+        $email = post('email');
         $categories = post('category', []);
 
-        // looking for existing subscriber
+        // Looking for existing subscriber
         $subscriberResult = Subscribers::email($email);
 
         if ($subscriberResult->count() > 0) {
@@ -64,17 +89,17 @@ class Subscribe extends ComponentBase
             // Update the name
             $subscriber->name = $name;
         }
+        // Register new one
         else {
-            // Register new one
             $subscriber = Subscribers::create([
                 'name'          => $name,
                 'email'         => $email,
-                'common'        => '',
+                'comment'       => '',
                 'locale'        => App::getLocale(),
                 'created'       => 2,
                 'statistics'    => 0,
-                'created_at'    => date('Y-m-d H:i:s'),
-                'updated_at'    => date('Y-m-d H:i:s'),
+                'created_at'    => now(),
+                'updated_at'    => now(),
                 'registered_at' => now(),
                 'registered_ip' => Request::ip(),
                 'status'        => 3

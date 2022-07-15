@@ -2,13 +2,12 @@
 
 use App;
 use File;
+use Indikator\News\Models\Settings;
 use Mail;
 use Queue;
 use Log;
 use BackendAuth;
 use Db;
-use Jenssegers\Date\Date;
-use Illuminate\Support\Collection;
 use System\Classes\PluginManager;
 use Indikator\News\Models\Logs;
 use Indikator\News\Models\Posts;
@@ -18,7 +17,7 @@ use Indikator\News\Models\Subscribers;
 class NewsSender
 {
     /**
-     * @var Post
+     * @var Posts
      */
     protected $news;
 
@@ -95,7 +94,7 @@ class NewsSender
     public function sendNewsletter()
     {
         $result = $this->sendToActiveSubscribers();
-        $this->news->last_send_at = new Date();
+        $this->news->last_send_at = now();
         $this->news->save();
 
         return $result;
@@ -107,7 +106,7 @@ class NewsSender
     public function resendNewsletter()
     {
         $result = $this->sendToActiveSubscribers();
-        $this->news->last_send_at = new Date();
+        $this->news->last_send_at = now();
         $this->news->save();
 
         return $result;
@@ -120,11 +119,13 @@ class NewsSender
     {
         $activeSubscribers = Subscribers::where('status', 1);
 
-        if (Categories::count() > 0) {
-            $activeSubscribers = $this->news->category->subscribers()->isSubscribed();
+        if (Settings::get('newsletter_subscriber_categories')) {
+            $categoryIds = $this->news->categories()->lists('id');
+            $activeSubscribers->filterCategories($categoryIds);
         }
 
         $activeSubscribers = $activeSubscribers->get();
+
         $results = true;
 
         foreach ($activeSubscribers as $receiver) {
@@ -138,7 +139,7 @@ class NewsSender
      * Prepare newsletter parameters for the template by the receiver.
      * It also replaces the content with absolute urls.
      *
-     * @param $receiver
+     * @param Subscribers $receiver
      * @return array
      */
     protected function prepareNewsletterParametersForReceiver($receiver)
@@ -151,7 +152,6 @@ class NewsSender
             else {
                 $content = $this->news->lang($receiver->locale)->content;
             }
-
         }
         else {
             if ($this->news->enable_newsletter_content) {
@@ -175,19 +175,30 @@ class NewsSender
             $this->replacedContent = preg_replace('/<img (.+)?style="width: (.+)px;"/i', '<img $1 width="$2"', $this->replacedContent);
         }
 
+        // Categories
+        $newsCategoryIds = $this->news->categories()->lists('id');
+        $subscriberCatIds = $receiver->categories()->lists('id');
+        // intersection between news and subscriber
+        $categoryIds = $newsCategoryIds->intersect($subscriberCatIds);
+
+        $categories =
+            Categories::whereIn('id', $categoryIds)
+            ->get();
+
         // Parameters
         return [
-            'name'  => $receiver->name,
-            'email' => $receiver->email,
-            'title' => $this->news->title,
-            'slug'  => $this->news->slug,
-            'subtitle' => $this->news->subtitle,
+            'name'         => isset($receiver->name) ? $receiver->name : trim($receiver->first_name.' '.$receiver->last_name),
+            'email'        => $receiver->email,
+            'title'        => $this->news->title,
+            'slug'         => $this->news->slug,
+            'subtitle'     => $this->news->subtitle,
             'introductory' => $this->news->introductory,
-            'summary'   => $this->news->introductory,
-            'plaintext' => strip_tags($this->news->introductory),
-            'content'   => $this->replacedContent,
-            'image'     => $this->news->image,
-            'category' => $this->news->category
+            'summary'      => $this->news->introductory,
+            'plaintext'    => strip_tags($this->news->introductory),
+            'content'      => $this->replacedContent,
+            'image'        => $this->news->image,
+            'category'     => $categories->first(), // keep backwards compatibility
+            'categories'   => $categories
         ];
     }
 
@@ -240,7 +251,7 @@ class NewsSender
             ], 'newsletter');
 
             if ($qId) {
-                Logs::where('id', $logEntry->id)->update(['job_id' => $qId]);
+                Logs::whereId($logEntry->id)->update(['job_id' => $qId]);
             }
 
             return true;
